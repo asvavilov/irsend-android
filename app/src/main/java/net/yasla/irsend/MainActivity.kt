@@ -16,15 +16,16 @@ import net.yasla.irsend.ui.theme.IrsendTheme
 import android.hardware.ConsumerIrManager;
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Button
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
 import kotlin.system.exitProcess
 
 private lateinit var cirManager: ConsumerIrManager
-private val IR_FREQUENCY = 56000 // частота передачи: 38000 или 56000 (работает с обеими)
+private const val IR_FREQUENCY = 56000 // частота передачи: 38000 или 56000 (работает с обеими)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,7 +44,6 @@ class MainActivity : ComponentActivity() {
             IrsendTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Greeting(
-                        name = "Android",
                         modifier = Modifier
                             .padding(innerPadding)
                             .fillMaxSize()
@@ -55,24 +55,34 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
+fun Greeting(modifier: Modifier = Modifier) {
+    val teamColor = remember { mutableIntStateOf(2) } // 0 - 3
+    val damageValue = remember { mutableIntStateOf(9) } // 0 - 15
+
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "Привет, ${name}!")
         Button(onClick = { sendStartGame() }) {
             Text("Старт игры")
         }
-        Button(onClick = { sendDamage(0x10, 0x1001) }) {
+        Button(onClick = { sendDamage(teamColor.intValue, damageValue.intValue) }) {
             Text("Выстрел")
         }
+        Row {
+            Button(onClick = {
+                if (teamColor.intValue == 3) teamColor.intValue = 0 else teamColor.intValue++
+            }) {
+                Text("цвет: ${teamColor.intValue}")
+            }
+            Button(onClick = {
+                if (damageValue.intValue == 15) damageValue.intValue = 0 else damageValue.intValue++
+            }) {
+                Text("урон: ${damageValue.intValue}")
+            }
+        }
     }
-    /*Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )*/
 }
 
 @Preview(showBackground = true)
@@ -81,7 +91,6 @@ fun GreetingPreview() {
     IrsendTheme {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
             Greeting(
-                name = "Android",
                 modifier = Modifier
                     .padding(innerPadding)
                     .fillMaxSize()
@@ -145,15 +154,46 @@ private fun sendStartGame() {
     sendCommand(pattern)
 }
 
+// цвет команды (2 бита)
+fun createArrayShiftTeam(number: Int): IntArray {
+    if (number !in 0..3) {
+        throw IllegalArgumentException("Число должно быть от 0 до 3")
+    }
+
+    val values = intArrayOf(600, 1200)
+
+    return intArrayOf(
+        values[number shr 1], 600, // Сдвигаем вправо на 1 бит
+        values[number and 1], 600, // Берем младший бит
+    )
+}
+
+// наносимый урон (4 бит)
+fun createArrayShiftDamage(number: Int): IntArray {
+    if (number !in 0..15) {
+        throw IllegalArgumentException("Число должно быть от 0 до 15")
+    }
+
+    val values = intArrayOf(600, 1200)
+
+    return intArrayOf(
+        values[number shr 3], 600, // 4-й бит
+        values[number shr 2 and 1], 600, // 3-й бит
+        values[number shr 1 and 1], 600, // 2-й бит
+        values[number and 1], 600, // 1-й бит
+    )
+}
+
 private fun sendDamage(team: Int, damage: Int) {
+    // TODO ID
+
     val pattern = intArrayOf(
-        //2400, 600, team, 600, damage, 600, 0xE8, 600
         // Заголовок (2400 микросекунд)
         2400, 600,
 
         // 0 для выстрела
         600, 600,
-
+    ) + intArrayOf(
         // ID игрока (7 бит)
         600, 600,
         600, 600,
@@ -162,16 +202,6 @@ private fun sendDamage(team: Int, damage: Int) {
         600, 600,
         600, 600,
         1200, 600,
-
-        // цвет команды (2 бита)
-        1200, 600,
-        600, 600,
-
-        // наносимый урон (4 бит)
-        1200, 600,
-        600, 600,
-        600, 600,
-        1200, 600,
-    )
+    ) + createArrayShiftTeam(team) + createArrayShiftDamage(damage)
     sendCommand(pattern)
 }
