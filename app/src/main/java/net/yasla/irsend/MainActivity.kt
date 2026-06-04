@@ -17,7 +17,12 @@ import android.hardware.ConsumerIrManager;
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +61,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun Greeting(modifier: Modifier = Modifier) {
+    val playerId = remember { mutableIntStateOf(1) } // 0 - 127
     val teamColor = remember { mutableIntStateOf(2) } // 0 - 3
     val damageValue = remember { mutableIntStateOf(9) } // 0 - 15
 
@@ -67,8 +73,36 @@ fun Greeting(modifier: Modifier = Modifier) {
         Button(onClick = { sendStartGame() }) {
             Text("Старт игры")
         }
-        Button(onClick = { sendDamage(teamColor.intValue, damageValue.intValue) }) {
+        Button(onClick = { sendDamage(playerId.intValue, teamColor.intValue, damageValue.intValue) }) {
             Text("Выстрел")
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = playerId.intValue.toString(),
+                onValueChange = { input ->
+                    val newValue = input.toIntOrNull()
+                    if (newValue != null && newValue in 0..127) {
+                        playerId.intValue = newValue
+                    }
+                },
+                label = { Text("ID") },
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true
+            )
+            Button(onClick = {
+                if (playerId.intValue > 0) playerId.intValue--
+            }) {
+                Text("-")
+            }
+            Button(onClick = {
+                if (playerId.intValue < 127) playerId.intValue++
+            }) {
+                Text("+")
+            }
         }
         Row {
             Button(onClick = {
@@ -184,24 +218,32 @@ fun createArrayShiftDamage(number: Int): IntArray {
     )
 }
 
-private fun sendDamage(team: Int, damage: Int) {
-    // TODO ID
+// ID игрока (7 бит)
+fun createArrayShiftPlayerId(number: Int): IntArray {
+    if (number !in 0..127) {
+        throw IllegalArgumentException("Число должно быть от 0 до 127")
+    }
 
+    val values = intArrayOf(600, 1200)
+
+    return intArrayOf(
+        values[number shr 6], 600, // 7-й бит
+        values[number shr 5 and 1], 600, // 6-й бит
+        values[number shr 4 and 1], 600, // 5-й бит
+        values[number shr 3 and 1], 600, // 4-й бит
+        values[number shr 2 and 1], 600, // 3-й бит
+        values[number shr 1 and 1], 600, // 2-й бит
+        values[number and 1], 600, // 1-й бит
+    )
+}
+
+private fun sendDamage(playerId: Int, team: Int, damage: Int) {
     val pattern = intArrayOf(
         // Заголовок (2400 микросекунд)
         2400, 600,
 
         // 0 для выстрела
         600, 600,
-    ) + intArrayOf(
-        // ID игрока (7 бит)
-        600, 600,
-        600, 600,
-        600, 600,
-        600, 600,
-        600, 600,
-        600, 600,
-        1200, 600,
-    ) + createArrayShiftTeam(team) + createArrayShiftDamage(damage)
+    ) + createArrayShiftPlayerId(playerId) + createArrayShiftTeam(team) + createArrayShiftDamage(damage)
     sendCommand(pattern)
 }
