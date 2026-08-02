@@ -1,6 +1,5 @@
 package net.yasla.irsend
 
-import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,7 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import net.yasla.irsend.ui.theme.IrsendTheme
-import android.hardware.ConsumerIrManager;
+import android.hardware.ConsumerIrManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,7 +23,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import kotlin.system.exitProcess
@@ -37,7 +35,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         // Получение сервиса ИК-порта
-        cirManager = getSystemService(Context.CONSUMER_IR_SERVICE) as ConsumerIrManager
+        cirManager = getSystemService(CONSUMER_IR_SERVICE) as ConsumerIrManager
         // Проверка наличия ИК-порта
         if (!cirManager.hasIrEmitter()) {
             showErrorAndExit("ИК-порт недоступен")
@@ -71,7 +69,7 @@ fun Greeting(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.Center
     ) {
         Button(onClick = { sendStartGame() }) {
-            Text("Старт игры")
+            Text("Новая игра")
         }
         Button(onClick = { sendDamage(playerId.intValue, teamColor.intValue, damageValue.intValue) }) {
             Text("Выстрел")
@@ -165,8 +163,7 @@ private fun sendStartGame() {
         1200, 600,
         1200, 600,
 
-        // Байт 2 (0x02 - старт игры, b00000010)
-        600, 600,
+        // Байт 2 (0x05 - новая игра, b00000101)
         600, 600,
         600, 600,
         600, 600,
@@ -174,6 +171,7 @@ private fun sendStartGame() {
         600, 600,
         1200, 600,
         600, 600,
+        1200, 600,
 
         // Байт 3 (0xE8 - конец пакета, b11101000)
         1200, 600,
